@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "640418317464",
+    "project_id": "rosma-info1",
+    "storage_bucket": "rosma-info1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:640418317464:android:192d816f21a850553afced",
+        "android_client_info": {
+          "package_name": "com.example.rosma_info2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRZr7x5GuH3ey7Fsaaij4zCbJlKR62rLc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
