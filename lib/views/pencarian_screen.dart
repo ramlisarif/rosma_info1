@@ -4,6 +4,19 @@ import '../models/pedagang_model.dart';
 import '../services/pedagang_service.dart';
 import 'map_rute_screen.dart';
 
+extension StringCasingExtension on String {
+  String toTitleCase() {
+    if (isEmpty) return '';
+    return split(' ')
+        .map(
+          (word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+              : '',
+        )
+        .join(' ');
+  }
+}
+
 class PencarianScreen extends StatefulWidget {
   const PencarianScreen({super.key});
 
@@ -15,18 +28,49 @@ class _PencarianScreenState extends State<PencarianScreen> {
   final TextEditingController _searchController = TextEditingController();
   final PedagangService _service = PedagangService();
 
-  bool _isLoading = false;
+  bool _isLoading = true;
   Position? _userPosition;
   List<PedagangModel> _searchResults = [];
-  bool _hasSearched = false;
 
   @override
   void initState() {
     super.initState();
-    _initGps();
+    _initData();
   }
 
-  // Mengaktifkan GPS saat halaman dimuat
+  String? _getImageAssetPath(String namaPedagang) {
+    String name = namaPedagang.toLowerCase();
+
+    if (name.contains('gamalama')) {
+      return 'assets/pasargamalama.jpeg';
+    } else if (name.contains('buah') || name.contains('barito')) {
+      return 'assets/pasarbarito.jpeg';
+    } else if (name.contains('tingkat')) {
+      return 'assets/pasartingkat.jpeg';
+    } else if (name.contains('makmur')) {
+      return 'assets/makmur.jpeg';
+    } else if (name.contains('giga')) {
+      return 'assets/gigacom.jpeg';
+    } else if (name.contains('garuda')) {
+      return 'assets/garudaelok.jpeg';
+    } else if (name.contains('higienis') || name.contains('higensi')) {
+      return 'assets/pasarhigienis.jpeg';
+    } else if (name.contains('depo')) {
+      return 'assets/depomart.jpeg';
+    } else if (name.contains('kota') || name.contains('pariwisata')) {
+      return 'assets/pasarkota.jpeg';
+    } else if (name.contains('batu') || name.contains('anugerah')) {
+      return 'assets/rukosinarjaya.jpeg';
+    }
+
+    return null;
+  }
+
+  Future<void> _initData() async {
+    _initGps();
+    await _loadAllPedagang();
+  }
+
   Future<void> _initGps() async {
     Position? pos = await _service.getCurrentLocation();
     if (mounted) {
@@ -36,26 +80,23 @@ class _PencarianScreenState extends State<PencarianScreen> {
     }
   }
 
-  // Fungsi Pencarian saat tombol/search ditekan
-  Future<void> _handleSearch() async {
-    String query = _searchController.text.trim();
-    if (query.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Masukkan nama pedagang terlebih dahulu'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
+  Future<void> _loadAllPedagang() async {
+    setState(() => _isLoading = true);
+    List<PedagangModel> hasil = await _service.searchPedagang('');
+
+    if (mounted) {
+      setState(() {
+        _searchResults = hasil;
+        _isLoading = false;
+      });
     }
+  }
 
-    FocusScope.of(context).unfocus(); // Tutup keyboard
-    setState(() {
-      _isLoading = true;
-      _hasSearched = true;
-    });
+  Future<void> _handleSearch() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
 
-    // Mengambil data dari Firebase
+    String query = _searchController.text;
     List<PedagangModel> hasil = await _service.searchPedagang(query);
 
     if (mounted) {
@@ -66,7 +107,6 @@ class _PencarianScreenState extends State<PencarianScreen> {
     }
   }
 
-  // Navigasi ke Halaman Peta & Rute
   void _onPedagangSelected(PedagangModel pedagang) {
     Navigator.push(
       context,
@@ -77,13 +117,27 @@ class _PencarianScreenState extends State<PencarianScreen> {
     );
   }
 
+  String _calculateDistance(double targetLat, double targetLng) {
+    if (_userPosition == null) return '';
+    double distanceInMeters = Geolocator.distanceBetween(
+      _userPosition!.latitude,
+      _userPosition!.longitude,
+      targetLat,
+      targetLng,
+    );
+    if (distanceInMeters >= 1000) {
+      return '${(distanceInMeters / 1000).toStringAsFixed(1)} km';
+    }
+    return '${distanceInMeters.round()} m';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.teal,
+        backgroundColor: Colors.teal.shade700,
         foregroundColor: Colors.white,
         title: const Text(
           'Pencarian Pedagang',
@@ -93,12 +147,14 @@ class _PencarianScreenState extends State<PencarianScreen> {
       ),
       body: Column(
         children: [
-          // Header Modern dengan Kartu Input Pencarian
+          // Header Input Pencarian
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade700,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(24),
+              ),
             ),
             child: Column(
               children: [
@@ -119,21 +175,21 @@ class _PencarianScreenState extends State<PencarianScreen> {
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _handleSearch(),
                     decoration: InputDecoration(
-                      hintText: 'Masukkan nama pedagang / pasar...',
+                      hintText: 'Cari nama pedagang...',
                       hintStyle: TextStyle(
                         color: Colors.grey[400],
                         fontSize: 14,
                       ),
-                      prefixIcon: const Icon(Icons.search, color: Colors.teal),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.teal.shade700,
+                      ),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, color: Colors.grey),
                               onPressed: () {
                                 _searchController.clear();
-                                setState(() {
-                                  _searchResults.clear();
-                                  _hasSearched = false;
-                                });
+                                _loadAllPedagang();
                               },
                             )
                           : null,
@@ -146,15 +202,13 @@ class _PencarianScreenState extends State<PencarianScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Tombol Cari Modern
                 SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
                     onPressed: _isLoading ? null : _handleSearch,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade800,
+                      backgroundColor: Colors.teal.shade900,
                       foregroundColor: Colors.white,
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -163,7 +217,7 @@ class _PencarianScreenState extends State<PencarianScreen> {
                     ),
                     icon: _isLoading
                         ? const SizedBox.shrink()
-                        : const Icon(Icons.search_rounded),
+                        : const Icon(Icons.search_rounded, size: 20),
                     label: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -186,18 +240,21 @@ class _PencarianScreenState extends State<PencarianScreen> {
             ),
           ),
 
-          // Area Hasil Pencarian
+          // Area Daftar Pedagang
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.teal),
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.teal.shade700,
+                    ),
                   )
-                : !_hasSearched
-                ? _buildInitialState()
                 : _searchResults.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     itemCount: _searchResults.length,
                     itemBuilder: (context, index) {
                       final pedagang = _searchResults[index];
@@ -210,37 +267,6 @@ class _PencarianScreenState extends State<PencarianScreen> {
     );
   }
 
-  // Tampilan Awal Sebelum Mencari
-  Widget _buildInitialState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.store_mall_directory_outlined,
-            size: 80,
-            color: Colors.teal.shade200,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Cari Pedagang atau Lokasi Pasar',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Ketik nama pedagang di atas lalu tekan "Cari Pedagang"',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Tampilan Jika Data Tidak Ditemukan
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -249,7 +275,7 @@ class _PencarianScreenState extends State<PencarianScreen> {
           Icon(Icons.search_off_rounded, size: 70, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text(
-            'Data Tidak Ditemukan',
+            'Pedagang Tidak Ditemukan',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -258,93 +284,153 @@ class _PencarianScreenState extends State<PencarianScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Pastikan ejaan nama pedagang sudah benar',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            'Coba ketik nama pedagang lainnya',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
         ],
       ),
     );
   }
 
-  // Kartu Hasil Pencarian Pedagang
   Widget _buildPedagangCard(PedagangModel pedagang) {
+    // Memastikan jika nama dari firebase kosong/null, tampilkan nama default
+    final String displayName = pedagang.nama.trim().isNotEmpty
+        ? pedagang.nama.toTitleCase()
+        : 'Pedagang Tanpa Nama';
+
+    final String? imagePath = _getImageAssetPath(displayName);
+    final String jarakStr = _calculateDistance(
+      pedagang.latitude,
+      pedagang.longitude,
+    );
+
+    // Ambil deskripsi atau kategori jika ada di model
+    final String deskripsiStr =
+        pedagang.deskripsi ?? pedagang.kategori ?? 'Tidak ada deskripsi';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF64748B).withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => _onPedagangSelected(pedagang),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(12.0),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    Icons.storefront_rounded,
-                    color: Colors.teal.shade700,
-                    size: 28,
-                  ),
+                // Gambar Pedagang atau Placeholder Icon
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: imagePath != null
+                      ? Image.asset(
+                          imagePath,
+                          width: 55,
+                          height: 55,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildFallbackIcon();
+                          },
+                        )
+                      : _buildFallbackIcon(),
                 ),
                 const SizedBox(width: 14),
+
+                // Area Nama + Deskripsi / Kategori
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // Nama Pedagang
                       Text(
-                        pedagang.nama,
+                        displayName,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        pedagang.kategori,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.teal.shade800,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        pedagang.deskripsi,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      // Deskripsi / Kategori Pedagang
+                      Text(
+                        deskripsiStr,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
+                          height: 1.2,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.directions_outlined,
-                  size: 26,
-                  color: Colors.teal.shade600,
+                const SizedBox(width: 8),
+
+                // Tombol Rute dan Jarak
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE6F4EA),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.directions_outlined,
+                        size: 20,
+                        color: Colors.teal.shade700,
+                      ),
+                    ),
+                    if (jarakStr.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        jarakStr,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackIcon() {
+    return Container(
+      width: 55,
+      height: 55,
+      color: Colors.teal.shade50,
+      child: Icon(
+        Icons.storefront_rounded,
+        color: Colors.teal.shade700,
+        size: 28,
       ),
     );
   }

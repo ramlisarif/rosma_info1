@@ -45,21 +45,18 @@ class PedagangService {
         return allPedagang;
       }
 
-      // Pecah kata kunci berdasarkan spasi (misal: "pasa" dan "tingkat")
+      // Pecah kata kunci berdasarkan spasi
       List<String> queryWords = cleanQuery
           .split(' ')
           .where((w) => w.isNotEmpty)
           .toList();
 
-      // Filter fleksibel: mengecek nama, kategori, dan deskripsi
+      // Filter HANYA berdasarkan field 'nama' pedagang
       return allPedagang.where((pedagang) {
         final nama = pedagang.nama.toLowerCase();
-        final kategori = pedagang.kategori.toLowerCase();
-        final deskripsi = pedagang.deskripsi.toLowerCase();
-        final combinedText = '$nama $kategori $deskripsi';
 
-        // Cocok jika ada salah satu kata kunci yang sesuai
-        return queryWords.any((word) => combinedText.contains(word));
+        // Cocok jika ada salah satu kata kunci yang ada di dalam nama pedagang
+        return queryWords.any((word) => nama.contains(word));
       }).toList();
     } catch (e) {
       print("Error searchPedagang: $e");
